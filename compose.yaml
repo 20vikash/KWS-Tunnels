@@ -5,15 +5,9 @@ services:
     container_name: kws_tunnel_gateway
     privileged: true
     volumes:
-      - ./nginx/conf.d:/app/nginx_conf:rw
       - ./src/:/app/data
     network_mode: "host"
     ports:
       - "8081:8081"
-    depends_on:
-      - postgres
-      - redis
-      - rabbitmq
-      - postgres_service
     working_dir: /app/data/cmd
-    command: sh -c "apt-get update && apt-get install -y uuid-runtime && go run ."
+    command: sh -c "go run ."
