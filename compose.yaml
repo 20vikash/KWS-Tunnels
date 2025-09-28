@@ -11,3 +11,5 @@ services:
       - "8081:8081"
     working_dir: /app/data/cmd
     command: sh -c "go run ."
+
+  # Use the postgres and redis of the main KWS project

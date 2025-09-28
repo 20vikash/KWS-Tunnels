@@ -16,6 +16,7 @@ func NewRouter(app *Application) http.Handler {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(app.AuthorizationMiddleware)
 	r.Use(middleware.Timeout(60 * time.Second))
 	// r.Use(sessionManager.LoadAndSave)
 
