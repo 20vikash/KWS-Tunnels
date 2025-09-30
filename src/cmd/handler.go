@@ -1,33 +1,7 @@
 package main
 
-import (
-	"fmt"
-	"net/http"
+import "net/http"
 
-	"github.com/gorilla/websocket"
-)
+func (app *Application) HandleTunnelRequest(w http.ResponseWriter, r *http.Request) {
 
-func (app *Application) WsHandler(w http.ResponseWriter, r *http.Request) {
-	// Upgrade the HTTP connection to a WebSocket connection
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		fmt.Println("Error upgrading:", err)
-		return
-	}
-	defer conn.Close()
-	// Listen for incoming messages
-	for {
-		// Read message from the client
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			fmt.Println("Error reading message:", err)
-			break
-		}
-		fmt.Printf("Received: %s\\n", message)
-		// Echo the message back to the client
-		if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
-			fmt.Println("Error writing message:", err)
-			break
-		}
-	}
 }
