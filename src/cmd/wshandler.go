@@ -23,7 +23,7 @@ func (app *Application) WsHandler(w http.ResponseWriter, r *http.Request) {
 	// Before upgrading to WS.
 	// 1. Get the secret from the header.
 	// 2. Check the validity of the secret.
-	// 3. Get the tunnel name from the body.
+	// 3. Get the tunnel name from the body(check if the tunnel name matches with the secret).
 	// 4. Get the domain name from the tunnel name.
 	// 5. Populate the conns map once everything passed
 

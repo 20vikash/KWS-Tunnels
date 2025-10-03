@@ -36,7 +36,7 @@ func main() {
 	redis := database.RedisDB{
 		Addr:     "",
 		Password: "",
-		DB:       0,
+		DB:       2,
 	}
 	redisCon := redis.Connect()
 
