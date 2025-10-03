@@ -2,37 +2,73 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
+	consts "tunnels/tunnels/consts/status"
 
 	"github.com/gorilla/websocket"
 )
 
 // Once login -> Redis(secret - UID)(with expiry)
 // Create tunnel -> Populate postgres, Create nginx conf and reload(certbot if domain is custom)
-// Run tunnel -> (client sends secret, tunnel name) -> get the domain from the tunnel name
-// Destroy tunnel -> Destroy everything
-
-// Conns needed for tunnel server
-// 1. Postgres (To get domain name from tunnel name)
 
 var conns = make(map[string]*websocket.Conn) // Domain, web socket connection
 var lock = sync.Mutex{}
 
 func (app *Application) WsHandler(w http.ResponseWriter, r *http.Request) {
-	// Before upgrading to WS.
-	// 1. Get the secret from the header.
-	// 2. Check the validity of the secret.
-	// 3. Get the tunnel name from the body(check if the tunnel name matches with the secret).
-	// 4. Get the domain name from the tunnel name.
-	// 5. Populate the conns map once everything passed
+	err := r.ParseForm()
+	if err != nil {
+		log.Println("Failed to parse form")
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
 
-	// Upgrade the HTTP connection to a WebSocket connection
+	// Before upgrading to WS.
+
+	// 1. Get the secret from the header.
+	secret := r.Header.Get("secret")
+
+	// 2. Check the validity of the secret.
+	uid, err := app.Store.InMemoryStore.GetUidFromSecret(r.Context(), secret)
+	if err != nil {
+		http.Error(w, "Invalid secret", http.StatusUnauthorized)
+		return
+	}
+
+	// 3. Get the tunnel name from the body(check if the tunnel name matches with the secret).
+	tunnel := r.Form.Get("tunnel")
+	valid, err := app.Store.TunnelStore.ValidateTunnelFromUID(r.Context(), uid, tunnel)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if !valid {
+		log.Println("Cannot find given tunnel from the secret")
+		http.Error(w, "Cannot find given tunnel from the secret", http.StatusBadRequest)
+		return
+	}
+
+	// 4. Get the domain name from the tunnel name.
+	domain, err := app.Store.TunnelStore.GetDomainFromTunnel(r.Context(), tunnel, uid)
+	if err != nil {
+		if err.Error() == consts.CANNOT_GET_DOMAIN {
+			http.Error(w, "No domain", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Upgrade to WS and Populate the conns map once everything passed
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Println("Error upgrading:", err)
 		return
 	}
+	app.AddConn(domain, conn)
+
 	defer conn.Close()
 	// Listen for incoming messages
 	for {
@@ -49,4 +85,18 @@ func (app *Application) WsHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+}
+
+func (app *Application) AddConn(domain string, ws *websocket.Conn) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	conns[domain] = ws
+}
+
+func (app *Application) RemoveConn(domain string) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	delete(conns, domain)
 }
