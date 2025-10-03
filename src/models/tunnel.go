@@ -1,6 +1,6 @@
 package models
 
 type Tunnel struct {
-	RequestID int    `json:"request_id"`
+	RequestID string `json:"request_id"`
 	Data      []byte `json:"data"`
 }
