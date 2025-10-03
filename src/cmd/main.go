@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	env "tunnels/tunnels/internal"
 	"tunnels/tunnels/internal/database"
 	"tunnels/tunnels/internal/store"
 
@@ -25,17 +26,17 @@ var upgrader = websocket.Upgrader{
 func main() {
 	// Create database connections.
 	pg := database.Pg{
-		User:     "",
-		Password: "",
-		Host:     "",
-		Port:     "",
-		Name:     "",
+		User:     env.GetDBUserName(),
+		Password: env.GetDBPassword(),
+		Host:     env.GetDBHost(),
+		Port:     env.GetDBPort(),
+		Name:     env.GetDBName(),
 	}
 	pgCon := pg.GetNewDBConnection()
 
 	redis := database.RedisDB{
-		Addr:     "",
-		Password: "",
+		Addr:     fmt.Sprintf("%s:%s", env.GetRedisHost(), env.GetRedisPort()),
+		Password: env.GetRedisPassword(),
 		DB:       2,
 	}
 	redisCon := redis.Connect()
