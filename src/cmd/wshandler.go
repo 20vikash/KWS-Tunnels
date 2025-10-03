@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 	consts "tunnels/tunnels/consts/status"
+	"tunnels/tunnels/models"
 
 	"github.com/gorilla/websocket"
 )
@@ -15,6 +16,9 @@ import (
 
 var conns = make(map[string]*websocket.Conn) // Domain, web socket connection
 var lock = sync.Mutex{}
+
+// Tunnel channel
+var tunChan chan models.Tunnel = make(chan models.Tunnel)
 
 func (app *Application) WsHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
