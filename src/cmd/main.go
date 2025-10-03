@@ -3,13 +3,16 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"tunnels/tunnels/internal/database"
+	"tunnels/tunnels/internal/store"
 
 	"github.com/gorilla/websocket"
 )
 
 type Application struct {
-	Host string
-	Port string
+	Host  string
+	Port  string
+	Store *store.Storage
 }
 
 var upgrader = websocket.Upgrader{
@@ -20,9 +23,29 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
+	// Create database connections.
+	pg := database.Pg{
+		User:     "",
+		Password: "",
+		Host:     "",
+		Port:     "",
+		Name:     "",
+	}
+	pgCon := pg.GetNewDBConnection()
+
+	redis := database.RedisDB{
+		Addr:     "",
+		Password: "",
+		DB:       0,
+	}
+	redisCon := redis.Connect()
+
+	store := store.NewStore(pgCon, redisCon)
+
 	app := &Application{
-		Host: "0.0.0.0",
-		Port: "8081",
+		Host:  "0.0.0.0",
+		Port:  "8081",
+		Store: store,
 	}
 
 	fmt.Println("WebSocket server started on :8081")
