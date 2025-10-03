@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"time"
 	"tunnels/tunnels/models"
 
 	"github.com/google/uuid"
@@ -29,9 +30,23 @@ func (app *Application) HandleTunnelRequest(w http.ResponseWriter, r *http.Reque
 	// Get the host header
 	host := r.Host
 
+	// Tunnel channel
+	var tunChan chan models.Tunnel = make(chan models.Tunnel)
+	tunChans[uuid] = tunChan
+	defer delete(tunChans, uuid)
+
 	// Send the message to the corresponding ws connection.
 	ws := conns[host]
-	ws.WriteJSON(tunnel)
+	ws.Write.Lock()
+	ws.Conn.WriteJSON(tunnel)
+	ws.Write.Unlock()
 
-	//TODO: Wait on the channel for response
+	// Wait on the channel for response
+	select {
+	case response := <-tunChan:
+		w.Write(response.Data)
+	case <-time.After(10 * time.Second): // Timeout from upstream
+		http.Error(w, "Upstream timeout", http.StatusGatewayTimeout)
+		return
+	}
 }

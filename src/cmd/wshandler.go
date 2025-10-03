@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,11 +15,10 @@ import (
 // Once login -> Redis(secret - UID)(with expiry)
 // Create tunnel -> Populate postgres, Create nginx conf and reload(certbot if domain is custom)
 
-var conns = make(map[string]*websocket.Conn) // Domain, web socket connection
+var conns = make(map[string]*models.WSConn) // Domain, web socket connection
 var lock = sync.Mutex{}
 
-// Tunnel channel
-var tunChan chan models.Tunnel = make(chan models.Tunnel)
+var tunChans = make(map[string]chan models.Tunnel)
 
 func (app *Application) WsHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
@@ -78,15 +78,22 @@ func (app *Application) WsHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		// Read message from the client
 		_, message, err := conn.ReadMessage()
+
 		if err != nil {
 			fmt.Println("Error reading message:", err)
 			break
 		}
-		fmt.Printf("Received: %s\\n", message)
-		// Echo the message back to the client
-		if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
-			fmt.Println("Error writing message:", err)
-			break
+
+		// Turn raw byte message object into tunnel object
+		var msg models.Tunnel
+		if err := json.Unmarshal(message, &msg); err != nil {
+			log.Println("Cannot decode the byte array into tunnels object")
+		}
+
+		if ch, ok := tunChans[msg.RequestID]; ok {
+			ch <- msg
+		} else {
+			log.Println("No channel for RequestID:", msg.RequestID)
 		}
 	}
 }
@@ -95,7 +102,12 @@ func (app *Application) AddConn(domain string, ws *websocket.Conn) {
 	lock.Lock()
 	defer lock.Unlock()
 
-	conns[domain] = ws
+	wsCon := models.WSConn{
+		Conn:  ws,
+		Write: &sync.Mutex{},
+	}
+
+	conns[domain] = &wsCon
 }
 
 func (app *Application) RemoveConn(domain string) {
